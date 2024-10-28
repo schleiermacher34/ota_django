@@ -1,0 +1,33 @@
+{% extends 'firmware/base.html' %}
+
+{% block title %}My Support Tickets{% endblock %}
+
+{% block content %}
+<h2>My Support Tickets</h2>
+{% if tickets %}
+    <table>
+        <thead>
+            <tr>
+                <th>Ticket ID</th>
+                <th>Machine</th>
+                <th>Issue Description</th>
+                <th>Status</th>
+                <th>Created At</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for ticket in tickets %}
+                <tr>
+                    <td>{{ ticket.id }}</td>
+                    <td>{{ ticket.machine.model_name }}</td>
+                    <td>{{ ticket.issue_description }}</td>
+                    <td>{{ ticket.status }}</td>
+                    <td>{{ ticket.created_at|date:"F j, Y, g:i a" }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% else %}
+    <p>You have not created any support tickets.</p>
+{% endif %}
+{% endblock %}

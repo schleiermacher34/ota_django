@@ -1,0 +1,13 @@
+{% extends 'firmware/base.html' %}
+
+{% block title %}Create Support Ticket{% endblock %}
+
+{% block content %}
+<h2>Create Support Ticket for {{ machine.model_name }}</h2>
+<form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Submit Ticket</button>
+</form>
+<a href="{% url 'machine_detail' machine.id %}">Back to Machine Details</a>
+{% endblock %}

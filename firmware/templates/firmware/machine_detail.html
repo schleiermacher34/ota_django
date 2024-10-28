@@ -1,0 +1,36 @@
+{% extends 'firmware/base.html' %}
+
+{% block title %}{{ machine.model_name }} Details{% endblock %}
+
+{% block content %}
+<h2>{{ machine.model_name }} Details</h2>
+<p><strong>Serial Number:</strong> {{ machine.serial_number }}</p>
+<p><strong>License Key:</strong> {{ machine.license_key }}</p>
+<p><strong>Activation Date:</strong> {{ machine.activation_date|date:"F j, Y, g:i a" }}</p>
+
+<h3>Logs</h3>
+{% if logs %}
+    <table>
+        <thead>
+            <tr>
+                <th>Timestamp</th>
+                <th>Log Type</th>
+                <th>Message</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for log in logs %}
+                <tr>
+                    <td>{{ log.timestamp|date:"F j, Y, g:i a" }}</td>
+                    <td>{{ log.get_log_type_display }}</td>
+                    <td>{{ log.message }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% else %}
+    <p>No logs available for this machine.</p>
+{% endif %}
+
+<a href="{% url 'create_ticket' machine.id %}">Create Support Ticket</a>
+{% endblock %}
