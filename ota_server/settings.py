@@ -28,15 +28,13 @@ SECRET_KEY = 'django-insecure-=n2vdz2uy-!rycjx^u9(mzj+1g5)+h7^_u@5^as3^)^63)r8+q
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['schleiermacher34.pythonanywhere.com']
+ALLOWED_HOSTS = ['schleiermacher34.pythonanywhere.com', '127.0.0.1']
 
 
 
 # Application definition
 
 INSTALLED_APPS = [
-    'admin_interface',
-    'colorfield',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
