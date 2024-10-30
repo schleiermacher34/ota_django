@@ -34,6 +34,12 @@ ALLOWED_HOSTS = ['schleiermacher34.pythonanywhere.com', '127.0.0.1']
 
 # Application definition
 
+# settings.py
+VTIGER_URL = 'https://vtiger.anatol.com//webservice.php'  # Replace with your Vtiger URL
+VTIGER_USERNAME = 'admin-andrii'               # Replace with your username
+VTIGER_ACCESS_KEY = '68jhKPOiltQdklnL'           # Replace with your access key
+
+
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -178,3 +184,18 @@ LOGGING = {
     },
 }
 
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'loggers': {
+        'firmware.management.commands.sync_vtiger': {
+            'handlers': ['console'],
+            'level': 'INFO',
+        },
+    },
+}

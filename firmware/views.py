@@ -13,9 +13,28 @@ from django.contrib.auth.decorators import login_required
 from .forms import SupportTicketForm
 from django.contrib.auth.models import User
 from .vtiger_client import VtigerClient
+from django.views.decorators.csrf import csrf_exempt
+import json
 
 
 
+
+@csrf_exempt
+def create_asset(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            serial_number = data.get('serial_number')
+            if serial_number:
+                # Process the serial number
+                # For example, create or update an asset in your database
+                return JsonResponse({'status': 'success'}, status=200)
+            else:
+                return JsonResponse({'error': 'Serial number not provided'}, status=400)
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON'}, status=400)
+    else:
+        return JsonResponse({'error': 'Invalid request method'}, status=405)
 
 
 @api_view(['POST'])
@@ -157,3 +176,4 @@ def get_token(request):
         })
     except Machine.DoesNotExist:
         return Response({'status': 'error', 'message': 'Invalid credentials.'}, status=400)
+

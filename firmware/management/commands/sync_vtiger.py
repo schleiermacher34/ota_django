@@ -1,72 +1,207 @@
 # sync_vtiger.py
-import json
+# ota_app/management/commands/sync_vtiger.py
+
+import hashlib
+import requests
+import logging
 from django.core.management.base import BaseCommand
-from django.contrib.auth.models import User
-from firmware.models import Machine
-from firmware.vtiger_client import VtigerClient
+from django.conf import settings
+from firmware.models import Asset, Customer  # Adjust import paths as necessary
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 class Command(BaseCommand):
-    help = 'Synchronize assets from Vtiger CRM with the Django database'
+    help = 'Synchronize assets from Vtiger CRM'
 
     def handle(self, *args, **options):
-        # Initialize Vtiger Client
-        base_url = 'https://vtiger.anatol.com'
-        username = 'admin-andrii'
-        access_key = '68jhKPOiltQdklnL'  # Replace this with your access key
-        proxies = {
-            "http": None,
-            "https": None
-        }
-        
-        client = VtigerClient(base_url, username, access_key, proxies)
-
-        # Attempt to login
-        try:
-            client.login()
-            print("Login successful")
-        except Exception as e:
-            print(f"An error occurred during login: {e}")
-            print("You need to login first.")
-            return
-        
-        # Fetch assets from Vtiger CRM
-        assets = client.get_assets()
-        if not assets:
-            print("No assets fetched.")
+        # Authenticate with Vtiger
+        session_name = self.vtiger_login()
+        if not session_name:
+            logger.error("Failed to authenticate with Vtiger CRM.")
             return
 
-        # Process each asset
-        for asset in assets:
-            print(f"Processing asset: {asset}")  # Debugging line
-            
-            customer_name = asset.get('customer_name')
-            product_name = asset.get('product_name')
-            asset_name = asset.get('asset_name')
-            serial_number = asset.get('serial_number')
+        # Fetch assets from Vtiger
+        vtiger_assets = self.fetch_vtiger_assets(session_name)
+        if not vtiger_assets:
+            logger.error("No assets fetched from Vtiger CRM.")
+            return
 
-            if not customer_name:
-                print(f"Skipping asset due to missing customer name: {asset}")
-                # Optionally, log this information to a file for later review
-                continue
-            
-            # Ensure a user exists for the customer
-            user, created = User.objects.get_or_create(username=customer_name)
-            if created:
-                print(f"Created new user for customer: {customer_name}")
-            
-            # Create or update machine details
-            machine, created = Machine.objects.get_or_create(
-                serial_number=serial_number,
-                defaults={
-                    'user': user,
-                    'model_name': product_name,
-                    'license_key': asset_name,
-                }
-            )
-            
-            if created:
-                print(f"Added new machine for user {customer_name}: {product_name} - {asset_name}")
+        # Cache for product names to minimize API calls
+        product_name_cache = {}
+
+        for asset_data in vtiger_assets:
+            print(f"Processing asset: {asset_data}")
+            account_id = asset_data.get('account')
+            product_id = asset_data.get('product')
+            customer_name = None
+            product_name = None
+
+            # Resolve customer name
+            if account_id:
+                customer_name = self.get_customer_name_from_vtiger(session_name, account_id)
+                if not customer_name:
+                    print(f"Skipping asset due to unresolved customer ID: {asset_data}")
+                    continue
             else:
-                print(f"Machine already exists for user {customer_name}: {product_name} - {asset_name}")
-        
-        print("Synchronization with Vtiger CRM completed successfully.")
+                print(f"Skipping asset due to missing account ID: {asset_data}")
+                continue
+
+            # Resolve product name
+            if product_id:
+                product_name = self.get_product_name_from_vtiger(session_name, product_id, product_name_cache)
+                if not product_name:
+                    print(f"Skipping asset due to unresolved product ID: {asset_data}")
+                    continue
+            else:
+                print(f"Skipping asset due to missing product ID: {asset_data}")
+                continue
+
+            # Check if product name contains 'mixer' (case-insensitive)
+            if 'mixer' in product_name.lower():
+                # Proceed to save or update the asset
+                self.save_asset(asset_data, customer_name, product_name)
+            else:
+                print(f"Skipping asset as product '{product_name}' does not contain 'mixer'")
+                continue
+
+    def vtiger_login(self):
+        """Authenticate with Vtiger and return the session name."""
+        vtiger_url = settings.VTIGER_URL
+        username = settings.VTIGER_USERNAME
+        access_key = settings.VTIGER_ACCESS_KEY
+
+        # Step 1: Get challenge token
+        params = {
+            'operation': 'getchallenge',
+            'username': username,
+        }
+        try:
+            response = requests.get(vtiger_url, params=params)
+            data = response.json()
+            if data.get('success'):
+                token = data['result']['token']
+            else:
+                logger.error(f"Failed to get challenge token: {data.get('error')}")
+                return None
+
+            # Step 2: Login
+            key = hashlib.md5((token + access_key).encode('utf-8')).hexdigest()
+            params = {
+                'operation': 'login',
+                'username': username,
+                'accessKey': key,
+            }
+            response = requests.post(vtiger_url, data=params)
+            data = response.json()
+            if data.get('success'):
+                session_name = data['result']['sessionName']
+                return session_name
+            else:
+                logger.error(f"Failed to login: {data.get('error')}")
+                return None
+        except Exception as e:
+            logger.error(f"Exception during Vtiger login: {e}")
+            return None
+
+    def fetch_vtiger_assets(self, session_name):
+        """Fetch assets from Vtiger CRM."""
+        vtiger_url = settings.VTIGER_URL
+        params = {
+            'operation': 'query',
+            'sessionName': session_name,
+            'query': "SELECT * FROM Assets;",
+        }
+        try:
+            response = requests.get(vtiger_url, params=params)
+            data = response.json()
+            if data.get('success'):
+                assets = data['result']
+                return assets
+            else:
+                logger.error(f"Failed to fetch assets: {data.get('error')}")
+                return []
+        except Exception as e:
+            logger.error(f"Exception occurred while fetching assets: {e}")
+            return []
+
+    def get_customer_name_from_vtiger(self, session_name, account_id):
+        """Retrieve the customer name using the account ID."""
+        vtiger_url = settings.VTIGER_URL
+        params = {
+            'operation': 'retrieve',
+            'sessionName': session_name,
+            'id': account_id,
+        }
+        try:
+            response = requests.get(vtiger_url, params=params)
+            data = response.json()
+
+            if data.get('success'):
+                account_data = data['result']
+                customer_name = account_data.get('accountname')
+                return customer_name
+            else:
+                logger.error(f"Failed to retrieve account {account_id}: {data.get('error')}")
+                return None
+        except Exception as e:
+            logger.error(f"Exception occurred while fetching account {account_id}: {e}")
+            return None
+
+    def get_product_name_from_vtiger(self, session_name, product_id, cache):
+        """Retrieve the product name using the product ID, with caching."""
+        # Check if the product name is already in the cache
+        if product_id in cache:
+            return cache[product_id]
+
+        vtiger_url = settings.VTIGER_URL
+        params = {
+            'operation': 'retrieve',
+            'sessionName': session_name,
+            'id': product_id,
+        }
+        try:
+            response = requests.get(vtiger_url, params=params)
+            data = response.json()
+
+            if data.get('success'):
+                product_data = data['result']
+                product_name = product_data.get('productname')
+                # Store in cache
+                cache[product_id] = product_name
+                return product_name
+            else:
+                logger.error(f"Failed to retrieve product {product_id}: {data.get('error')}")
+                return None
+        except Exception as e:
+            logger.error(f"Exception occurred while fetching product {product_id}: {e}")
+            return None
+
+    def save_asset(self, asset_data, customer_name, product_name):
+        """Save or update the asset in the database."""
+        # Find or create the customer in your local database
+        customer, _ = Customer.objects.get_or_create(name=customer_name)
+
+        # Map asset_data fields to your Asset model fields
+        asset_fields = {
+            'asset_no': asset_data.get('asset_no'),
+            'product': product_name,  # Use product name instead of ID
+            'serialnumber': asset_data.get('serialnumber'),
+            'datesold': asset_data.get('datesold') or None,
+            'dateinservice': asset_data.get('dateinservice') or None,
+            'assetstatus': asset_data.get('assetstatus'),
+            'assetname': asset_data.get('assetname'),
+            'customer': customer,
+            # Add other fields as necessary
+        }
+
+        # Use unique identifier to find existing asset or create a new one
+        asset, created = Asset.objects.update_or_create(
+            serialnumber=asset_data.get('serialnumber'),
+            defaults=asset_fields,
+        )
+
+        if created:
+            print(f"Created new asset: {asset}")
+        else:
+            print(f"Updated existing asset: {asset}")

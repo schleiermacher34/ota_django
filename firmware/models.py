@@ -34,7 +34,29 @@ def generate_license_key():
     return uuid.uuid4().hex.upper()
 
 
+class Customer(models.Model):
+    name = models.CharField(max_length=255, unique=True)
 
+    def __str__(self):
+        return self.name
+
+
+# ota_app/models.py
+
+from django.db import models
+
+class Asset(models.Model):
+    asset_no = models.CharField(max_length=100)
+    product = models.CharField(max_length=100)
+    serialnumber = models.CharField(max_length=100, unique=True)
+    datesold = models.DateField(null=True, blank=True)
+    dateinservice = models.DateField(null=True, blank=True)
+    assetstatus = models.CharField(max_length=100)
+    assetname = models.CharField(max_length=255)
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return f"{self.assetname} ({self.serialnumber})"
 
 
 class Machine(models.Model):
