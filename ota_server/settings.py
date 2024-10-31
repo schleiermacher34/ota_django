@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 
 from pathlib import Path
 import os
+import dj_database_url
 
 
 
@@ -28,7 +29,7 @@ SECRET_KEY = 'django-insecure-=n2vdz2uy-!rycjx^u9(mzj+1g5)+h7^_u@5^as3^)^63)r8+q
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['schleiermacher34.pythonanywhere.com', '127.0.0.1', 'bdea-188-163-32-199.ngrok-free.app', '188.163.32.199']
+ALLOWED_HOSTS = ['schleiermacher34.pythonanywhere.com', '127.0.0.1', 'bdea-188-163-32-199.ngrok-free.app', '188.163.32.199', 'mixeranatol-46e7e1f070ec.herokuapp.com']
 
 
 CSRF_TRUSTED_ORIGINS = [
@@ -116,10 +117,7 @@ WSGI_APPLICATION = 'ota_server.wsgi.application'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+'default': dj_database_url.config(conn_max_age=600, ssl_require=True)
 }
 
 
