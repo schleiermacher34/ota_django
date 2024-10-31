@@ -1,5 +1,5 @@
 from django.http import JsonResponse, HttpResponse
-from .models import Firmware, Machine, MachineLog
+from .models import Firmware, Machine, MachineLog, Asset
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from django.utils import timezone
@@ -24,53 +24,44 @@ from rest_framework.permissions import AllowAny
 def logs(request):
     try:
         data = json.loads(request.body)
-        serial_number = data.get('serial_number')
+        serial_number = data.get('serial_number')  # Add serial_number to the payload
         log_entry = data.get('logs')
 
         if not serial_number or not log_entry:
             return JsonResponse({'error': 'serial_number and logs are required'}, status=400)
 
         # Find the asset by serial number and update logs
-        asset = Asset.objects.filter(serialnumber=serial_number).first()
-        if asset:
+        try:
+            asset = Asset.objects.get(serialnumber=serial_number)
             asset.logs = (asset.logs or '') + '\n' + log_entry  # Append new log entry
             asset.save()
             return JsonResponse({'status': 'success'}, status=200)
-        else:
+        except Asset.DoesNotExist:
             return JsonResponse({'error': 'Asset not found'}, status=404)
 
     except json.JSONDecodeError:
         return JsonResponse({'error': 'Invalid JSON'}, status=400)
+
 
 @csrf_exempt
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def create_asset(request):
     try:
-        data = request.data if hasattr(request, 'data') else json.loads(request.body)
+        data = json.loads(request.body)
         serial_number = data.get('serial_number')
-        asset_name = data.get('asset_name')
-        product = data.get('product')
 
-        if not serial_number:
-            return JsonResponse({'error': 'Serial number is required'}, status=400)
-
-        # Create or update the asset
-        asset, created = Asset.objects.update_or_create(
-            serialnumber=serial_number,
-            defaults={'assetname': asset_name, 'product': product}
-        )
-
-        if created:
-            return JsonResponse({'status': 'Asset created successfully'}, status=201)
+        if serial_number:
+            asset, created = Asset.objects.get_or_create(serialnumber=serial_number)
+            if created:
+                return JsonResponse({'status': 'Asset created'}, status=201)
+            else:
+                return JsonResponse({'status': 'Asset already exists'}, status=200)
         else:
-            return JsonResponse({'status': 'Asset updated successfully'}, status=200)
+            return JsonResponse({'error': 'Serial number not provided'}, status=400)
 
     except json.JSONDecodeError:
         return JsonResponse({'error': 'Invalid JSON'}, status=400)
-    except Exception as e:
-        return JsonResponse({'error': f'Unexpected error: {str(e)}'}, status=500)
-
 
 
 @api_view(['POST'])
