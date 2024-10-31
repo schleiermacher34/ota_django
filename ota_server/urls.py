@@ -22,12 +22,12 @@ from firmware import views
 
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
     path('', include('firmware.urls')),
     path('machines/', views.machine_list, name='machine_list'),
     path('machines/<int:pk>/', views.machine_detail, name='machine_detail'),
     path('machines/<int:machine_id>/create_ticket/', views.create_ticket, name='create_ticket'),
     path('tickets/', views.ticket_list, name='ticket_list'),
+    path('admin/', admin.site.urls),
 
 ]+ static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)+ static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
 
