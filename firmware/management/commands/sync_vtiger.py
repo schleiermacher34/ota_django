@@ -58,7 +58,7 @@ class Command(BaseCommand):
                 continue
 
             # Check if product name contains 'mixer' (case-insensitive)
-            if 'mixer' in product_name.lower():
+            if 'tor' in product_name.lower():
                 # Proceed to save or update the asset
                 self.save_asset(asset_data, customer_name, product_name)
             else:
