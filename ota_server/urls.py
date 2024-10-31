@@ -23,7 +23,6 @@ from firmware import views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('firmware/', include('firmware.urls')),
     path('', include('firmware.urls')),
     path('machines/', views.machine_list, name='machine_list'),
     path('machines/<int:pk>/', views.machine_detail, name='machine_detail'),
