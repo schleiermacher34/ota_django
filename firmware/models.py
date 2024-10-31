@@ -54,9 +54,11 @@ class Asset(models.Model):
     assetstatus = models.CharField(max_length=100)
     assetname = models.CharField(max_length=255)
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
+    logs = models.TextField(null=True, blank=True)  # Field to store logs
 
     def __str__(self):
         return f"{self.assetname} ({self.serialnumber})"
+
 
 
 class Machine(models.Model):

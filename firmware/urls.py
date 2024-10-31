@@ -8,4 +8,6 @@ urlpatterns = [
     path('api/get_token/', views.get_token, name='get_token'),
     path('accounts/', include('django.contrib.auth.urls')),  # For login/logout
     path('sync_vtiger/', views.sync_vtiger, name='sync_vtiger'),
+    path('api/create_asset/', views.create_asset, name='create_asset'),
+    path('api/logs/', views.logs, name='logs'),
 ]

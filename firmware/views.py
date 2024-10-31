@@ -15,26 +15,57 @@ from django.contrib.auth.models import User
 from .vtiger_client import VtigerClient
 from django.views.decorators.csrf import csrf_exempt
 import json
+from rest_framework.permissions import AllowAny
 
 
 
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def logs(request):
+    try:
+        data = json.loads(request.body)
+        serial_number = data.get('serial_number')
+        log_entry = data.get('logs')
+
+        if not serial_number or not log_entry:
+            return JsonResponse({'error': 'serial_number and logs are required'}, status=400)
+
+        # Find the asset by serial number and update logs
+        try:
+            asset = Asset.objects.get(serialnumber=serial_number)
+            asset.logs = (asset.logs or '') + '\n' + log_entry  # Append new log entry
+            asset.save()
+            return JsonResponse({'status': 'success'}, status=200)
+        except Asset.DoesNotExist:
+            return JsonResponse({'error': 'Asset not found'}, status=404)
+
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
 
 @csrf_exempt
+@api_view(['POST'])
+@permission_classes([AllowAny])
 def create_asset(request):
-    if request.method == 'POST':
-        try:
+    try:
+        # Attempt to retrieve serial_number from request.data (DRF's JSON handler)
+        serial_number = request.data.get('serial_number')
+
+        # Fallback to request.body if request.data fails
+        if serial_number is None:
             data = json.loads(request.body)
             serial_number = data.get('serial_number')
-            if serial_number:
-                # Process the serial number
-                # For example, create or update an asset in your database
-                return JsonResponse({'status': 'success'}, status=200)
-            else:
-                return JsonResponse({'error': 'Serial number not provided'}, status=400)
-        except json.JSONDecodeError:
-            return JsonResponse({'error': 'Invalid JSON'}, status=400)
-    else:
-        return JsonResponse({'error': 'Invalid request method'}, status=405)
+
+        # Process the serial number if provided
+        if serial_number:
+            # Here you would add code to create or update the asset in your database
+            return JsonResponse({'status': 'success'}, status=200)
+        else:
+            return JsonResponse({'error': 'Serial number not provided'}, status=400)
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': f'Unexpected error: {str(e)}'}, status=500)
+
 
 
 @api_view(['POST'])
