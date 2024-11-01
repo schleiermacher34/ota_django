@@ -1,16 +1,17 @@
-from django.http import JsonResponse, HttpResponse
-from .models import Firmware, Asset
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.response import Response
-from django.utils import timezone
-import hashlib
-from rest_framework.permissions import IsAuthenticated, AllowAny
-from rest_framework_simplejwt.tokens import RefreshToken
+from django.http import JsonResponse
 from django.shortcuts import render, get_object_or_404, redirect
+from django.utils import timezone
+from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
+from .models import Firmware, Asset, Machine, SupportTicket, MachineLog
+from .serializers import MachineLogSerializer
 from .vtiger_client import VtigerClient
-from django.views.decorators.csrf import csrf_exempt
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+from rest_framework_simplejwt.tokens import RefreshToken
+import hashlib
 import json
 
 
@@ -29,10 +30,10 @@ def logs(request):
         if not serial_number or not log_entry:
             return JsonResponse({'error': 'serial_number and logs are required'}, status=400)
 
-        # Find the asset by serial number and update logs
+        # Find the asset by serial number and append logs
         asset = Asset.objects.filter(serialnumber=serial_number).first()
         if asset:
-            asset.logs = (asset.logs or '') + '\n' + log_entry  # Append new log entry
+            asset.logs = (asset.logs or '') + '\n' + log_entry
             asset.save()
             return JsonResponse({'status': 'Log entry added successfully'}, status=200)
         else:
@@ -49,25 +50,25 @@ def logs(request):
 @permission_classes([AllowAny])
 def create_asset(request):
     """
-    Create a new Asset with a unique serial number.
+    Create or update an Asset based on a unique serial number.
     """
     try:
         data = json.loads(request.body)
         serial_number = data.get('serial_number')
-        product = data.get('product', 'Unknown Product')  # Set a default if missing
+        product = data.get('product', 'Unknown Product')
         asset_name = data.get('asset_name', 'Unnamed Asset')
 
         if not serial_number:
             return JsonResponse({'error': 'Serial number not provided'}, status=400)
 
-        # Create or update asset based on serial number
+        # Create or update asset
         asset, created = Asset.objects.get_or_create(
             serialnumber=serial_number,
             defaults={'product': product, 'assetname': asset_name, 'logs': ''}
         )
 
         if not created:
-            asset.product = product  # Update product if asset exists
+            asset.product = product
             asset.save()
 
         return JsonResponse({'status': 'success', 'message': 'Asset created successfully' if created else 'Asset already exists'}, status=200)
@@ -80,15 +81,16 @@ def create_asset(request):
 
 @api_view(['POST'])
 def sync_vtiger(request):
+    """
+    Sync assets from Vtiger with the local database.
+    """
     vtiger = VtigerClient(
         url="https://vtiger.anatol.com/",
         access_key="68jhKPOiltQdklnL",
         username="admin-andrii",
     )
 
-    # Fetch assets from Vtiger
     assets = vtiger.get_assets()
-
     for asset in assets:
         serial_number = asset.get('serial_number')
         product_name = asset.get('product_name')
@@ -113,6 +115,9 @@ def sync_vtiger(request):
 
 
 def check_update(request):
+    """
+    Check if a firmware update is available.
+    """
     current_version = request.GET.get('version', '')
     try:
         latest_firmware = Firmware.objects.latest('uploaded_at')
@@ -137,6 +142,9 @@ def check_update(request):
 
 @login_required
 def create_ticket(request, machine_id):
+    """
+    Create a support ticket for a specific machine.
+    """
     machine = get_object_or_404(Machine, id=machine_id, user=request.user)
     if request.method == 'POST':
         form = SupportTicketForm(request.POST)
@@ -153,18 +161,27 @@ def create_ticket(request, machine_id):
 
 @login_required
 def ticket_list(request):
+    """
+    Display a list of support tickets for the current user.
+    """
     tickets = SupportTicket.objects.filter(user=request.user)
     return render(request, 'firmware/ticket_list.html', {'tickets': tickets})
 
 
 @login_required
 def machine_list(request):
+    """
+    Display a list of machines for the current user.
+    """
     machines = Machine.objects.filter(user=request.user)
     return render(request, 'firmware/machine_list.html', {'machines': machines})
 
 
 @login_required
 def machine_detail(request, pk):
+    """
+    Display detailed information for a specific machine.
+    """
     machine = get_object_or_404(Machine, pk=pk, user=request.user)
     logs = MachineLog.objects.filter(machine=machine)
     return render(request, 'firmware/machine_detail.html', {'machine': machine, 'logs': logs})
@@ -172,6 +189,9 @@ def machine_detail(request, pk):
 
 @api_view(['POST'])
 def validate_license(request):
+    """
+    Validate a machine's license based on its serial number and license key.
+    """
     serial_number = request.data.get('serial_number')
     license_key = request.data.get('license_key')
 
@@ -190,6 +210,9 @@ def validate_license(request):
 
 @api_view(['POST'])
 def upload_log(request):
+    """
+    Upload a log entry for a specific machine.
+    """
     serializer = MachineLogSerializer(data=request.data)
     if serializer.is_valid():
         serializer.save()
@@ -200,6 +223,9 @@ def upload_log(request):
 
 @api_view(['POST'])
 def get_token(request):
+    """
+    Retrieve a JWT token for a machine based on serial number and license key.
+    """
     serial_number = request.data.get('serial_number')
     license_key = request.data.get('license_key')
 
