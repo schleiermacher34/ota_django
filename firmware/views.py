@@ -1,16 +1,14 @@
 from django.http import JsonResponse, HttpResponse
-from .models import Firmware, Machine, MachineLog, Asset
+from .models import Firmware,  Asset
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from django.utils import timezone
 import hashlib
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import permission_classes
-from .serializers import MachineLogSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
-from .forms import SupportTicketForm
 from django.contrib.auth.models import User
 from .vtiger_client import VtigerClient
 from django.views.decorators.csrf import csrf_exempt

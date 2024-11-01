@@ -71,34 +71,8 @@ class Asset(models.Model):
         self.save()
 
 
-class MachineLog(models.Model):
-    LOG_TYPE_CHOICES = [
-        ('operation', 'Operation'),
-        ('error', 'Error'),
-    ]
 
-    machine = models.ForeignKey(Machine, on_delete=models.CASCADE)
-    timestamp = models.DateTimeField(auto_now_add=True)
-    log_type = models.CharField(max_length=20, choices=LOG_TYPE_CHOICES)
-    message = models.TextField()
 
-    def __str__(self):
-        return f"{self.machine} - {self.log_type} at {self.timestamp}"
 
-class SupportTicket(models.Model):
-    STATUS_CHOICES = [
-        ('Open', 'Open'),
-        ('In Progress', 'In Progress'),
-        ('Closed', 'Closed'),
-    ]
-
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    machine = models.ForeignKey(Machine, on_delete=models.CASCADE)
-    issue_description = models.TextField()
-    created_at = models.DateTimeField(auto_now_add=True)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Open')
-
-    def __str__(self):
-        return f"Ticket {self.id} - {self.status}"
 
 
