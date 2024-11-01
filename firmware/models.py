@@ -41,38 +41,34 @@ class Customer(models.Model):
         return self.name
 
 
-# ota_app/models.py
+class Customer(models.Model):
+    # Assuming a simple Customer model; customize as needed
+    name = models.CharField(max_length=255)
+    email = models.EmailField()
 
-from django.db import models
+    def __str__(self):
+        return self.name
 
 class Asset(models.Model):
-    asset_no = models.CharField(max_length=100)
-    product = models.CharField(max_length=100)
-    serialnumber = models.CharField(max_length=100, unique=True)
-    datesold = models.DateField(null=True, blank=True)
-    dateinservice = models.DateField(null=True, blank=True)
-    assetstatus = models.CharField(max_length=100)
+    asset_no = models.CharField(max_length=36, unique=True, editable=False, default=uuid.uuid4)
     assetname = models.CharField(max_length=255)
-    customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
-    logs = models.TextField(null=True, blank=True)  # Field to store logs
+    serialnumber = models.CharField(max_length=255, unique=True)
+    datesold = models.DateField(null=True, blank=True)  # Optional
+    dateinservice = models.DateField(null=True, blank=True)  # Optional
+    assetstatus = models.CharField(max_length=50, null=True, blank=True)  # Optional
+    customer = models.ForeignKey(Customer, on_delete=models.SET_NULL, null=True, blank=True)  # Optional
+
+    # Initialize logs as an empty field (use JSONField if you need structured data in logs)
+    logs = models.TextField(default="", blank=True)
 
     def __str__(self):
-        return f"{self.assetname} ({self.serialnumber})"
-
-
-
-class Machine(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    serial_number = models.CharField(max_length=100, unique=True)
-    product_name = models.CharField(max_length=100)
-    asset_name = models.CharField(max_length=100)
-    customer_name = models.CharField(max_length=100)
-    license_key = models.CharField(max_length=100, unique=True)
-    model_name = models.CharField(max_length=100)
-    activation_date = models.DateTimeField(null=True, blank=True)
-
-    def __str__(self):
-        return f"{self.model_name} ({self.serial_number})"
+        return f"{self.assetname} - {self.asset_no}"
+    def add_log(self, log_entry):
+        # Method to append log entries to logs field
+        current_time = timezone.now().strftime('%Y-%m-%d %H:%M:%S')
+        log_entry = f"{current_time}: {log_entry}\n"
+        self.logs += log_entry
+        self.save()
 
 
 class MachineLog(models.Model):
