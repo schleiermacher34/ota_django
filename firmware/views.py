@@ -12,7 +12,9 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 import hashlib
 import json
+import logging
 
+logger = logging.getLogger(__name__)
 
 @csrf_exempt
 @api_view(['POST'])
@@ -22,27 +24,38 @@ def logs(request):
     Append log entries to an Asset based on its serial number.
     """
     try:
-        data = request.data 
+        # Ensure request data is parsed correctly
+        data = request.data
+        logger.debug(f"Received data: {data}")
+
         serial_number = data.get('serial_number')
         log_entry = data.get('logs')
 
         if not serial_number or not log_entry:
+            logger.warning("Missing serial_number or logs in the request data.")
             return JsonResponse({'error': 'serial_number and logs are required'}, status=400)
 
-        # Find the asset by serial number and append logs
-        asset = Asset.objects.filter(serialnumber=serial_number).first()
-        if asset:
-            asset.logs = (asset.logs or '') + '\n' + log_entry
-            asset.save()
-            return JsonResponse({'status': 'Log entry added successfully'}, status=200)
-        else:
+        # Find the asset by serial number
+        try:
+            asset = Asset.objects.get(serialnumber=serial_number)
+            logger.debug(f"Found asset: {asset}")
+        except Asset.DoesNotExist:
+            logger.error(f"Asset with serial number {serial_number} not found.")
             return JsonResponse({'error': 'Asset not found'}, status=404)
 
-    except json.JSONDecodeError:
-        return JsonResponse({'error': 'Invalid JSON'}, status=400)
-    except Exception as e:
-        return JsonResponse({'error': f'Unexpected error: {str(e)}'}, status=500)
+        # Append the new log entry to the existing logs
+        if asset.logs:
+            asset.logs += '\n' + log_entry
+        else:
+            asset.logs = log_entry
 
+        asset.save()
+        logger.info(f"Log entry added to asset {serial_number}.")
+        return JsonResponse({'status': 'Log entry added successfully'}, status=200)
+
+    except Exception as e:
+        logger.exception("An unexpected error occurred while appending logs.")
+        return JsonResponse({'error': f'Unexpected error: {str(e)}'}, status=500)
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
