@@ -22,7 +22,7 @@ def logs(request):
     Append log entries to an Asset based on its serial number.
     """
     try:
-        data = json.loads(request.body)
+        data = request.data 
         serial_number = data.get('serial_number')
         log_entry = data.get('logs')
 
@@ -49,7 +49,7 @@ def logs(request):
 @permission_classes([AllowAny])
 def create_asset(request):
     try:
-        data = json.loads(request.body)
+        data = request.data
         serial_number = data.get('serial_number')
         product = data.get('product', 'Unknown Product')
         asset_name = data.get('asset_name', 'Unnamed Asset')
