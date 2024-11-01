@@ -31,6 +31,11 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['schleiermacher34.pythonanywhere.com', '127.0.0.1', 'bdea-188-163-32-199.ngrok-free.app', '188.163.32.199', 'mixeranatol-46e7e1f070ec.herokuapp.com']
 
+CORS_ALLOWED_ORIGINS = [
+    "http://188.163.32.199"
+]
+
+
 
 CSRF_TRUSTED_ORIGINS = [
     'https://bdea-188-163-32-199.ngrok-free.app',
