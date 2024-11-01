@@ -23,9 +23,6 @@ from firmware import views
 
 urlpatterns = [
     path('', include('firmware.urls')),
-    path('machines/', views.machine_list, name='machine_list'),
-    path('machines/<int:pk>/', views.machine_detail, name='machine_detail'),
-    path('machines/<int:machine_id>/create_ticket/', views.create_ticket, name='create_ticket'),
     path('tickets/', views.ticket_list, name='ticket_list'),
     path('admin/', admin.site.urls),
     path('api/create_asset', views.create_asset, name='create_asset'),
