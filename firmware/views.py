@@ -1,11 +1,10 @@
 from django.http import JsonResponse, HttpResponse
-from .models import Firmware,  Asset
-from rest_framework.decorators import api_view
+from .models import Firmware, Asset, Machine
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from django.utils import timezone
 import hashlib
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.decorators import permission_classes
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
@@ -13,9 +12,6 @@ from django.contrib.auth.models import User
 from .vtiger_client import VtigerClient
 from django.views.decorators.csrf import csrf_exempt
 import json
-from rest_framework.permissions import AllowAny
-
-
 
 
 @csrf_exempt
@@ -56,8 +52,9 @@ def create_asset(request):
     Create a new Asset with a unique serial number.
     """
     try:
-        data = request.data if hasattr(request, 'data') else json.loads(request.body)
+        data = json.loads(request.body)
         serial_number = data.get('serial_number')
+        product = data.get('product', 'Unknown Product')  # Set a default if missing
         asset_name = data.get('asset_name', 'Unnamed Asset')
 
         if not serial_number:
@@ -66,21 +63,19 @@ def create_asset(request):
         # Create or update asset based on serial number
         asset, created = Asset.objects.get_or_create(
             serialnumber=serial_number,
-            defaults={'assetname': asset_name, 'logs': ''}
+            defaults={'product': product, 'assetname': asset_name, 'logs': ''}
         )
 
-        if created:
-            message = 'Asset created successfully'
-        else:
-            message = 'Asset already exists'
+        if not created:
+            asset.product = product  # Update product if asset exists
+            asset.save()
 
-        return JsonResponse({'status': 'success', 'message': message}, status=200)
+        return JsonResponse({'status': 'success', 'message': 'Asset created successfully' if created else 'Asset already exists'}, status=200)
 
     except json.JSONDecodeError:
         return JsonResponse({'error': 'Invalid JSON'}, status=400)
     except Exception as e:
         return JsonResponse({'error': f'Unexpected error: {str(e)}'}, status=500)
-
 
 
 @api_view(['POST'])
@@ -89,7 +84,6 @@ def sync_vtiger(request):
         url="https://vtiger.anatol.com/",
         access_key="68jhKPOiltQdklnL",
         username="admin-andrii",
-
     )
 
     # Fetch assets from Vtiger
@@ -126,15 +120,6 @@ def check_update(request):
         return JsonResponse({'update_available': False})
 
     if latest_firmware.version != current_version:
-        return JsonResponse({
-            'update_available': True,
-            'version': latest_firmware.version,
-            'url': request.build_absolute_uri(latest_firmware.file.url),
-        })
-    else:
-        return JsonResponse({'update_available': False})
-    if latest_firmware.version != current_version:
-        # Calculate SHA256 checksum
         sha256_hash = hashlib.sha256()
         for chunk in latest_firmware.file.chunks():
             sha256_hash.update(chunk)
@@ -148,6 +133,7 @@ def check_update(request):
         })
     else:
         return JsonResponse({'update_available': False})
+
 
 @login_required
 def create_ticket(request, machine_id):
@@ -164,21 +150,25 @@ def create_ticket(request, machine_id):
         form = SupportTicketForm()
     return render(request, 'firmware/create_ticket.html', {'form': form, 'machine': machine})
 
+
 @login_required
 def ticket_list(request):
     tickets = SupportTicket.objects.filter(user=request.user)
     return render(request, 'firmware/ticket_list.html', {'tickets': tickets})
+
 
 @login_required
 def machine_list(request):
     machines = Machine.objects.filter(user=request.user)
     return render(request, 'firmware/machine_list.html', {'machines': machines})
 
+
 @login_required
 def machine_detail(request, pk):
     machine = get_object_or_404(Machine, pk=pk, user=request.user)
     logs = MachineLog.objects.filter(machine=machine)
     return render(request, 'firmware/machine_detail.html', {'machine': machine, 'logs': logs})
+
 
 @api_view(['POST'])
 def validate_license(request):
@@ -197,6 +187,7 @@ def validate_license(request):
     except Machine.DoesNotExist:
         return Response({'status': 'error', 'message': 'Invalid license.'}, status=400)
 
+
 @api_view(['POST'])
 def upload_log(request):
     serializer = MachineLogSerializer(data=request.data)
@@ -205,6 +196,7 @@ def upload_log(request):
         return Response({'status': 'success', 'message': 'Log uploaded.'})
     else:
         return Response(serializer.errors, status=400)
+
 
 @api_view(['POST'])
 def get_token(request):
@@ -222,4 +214,3 @@ def get_token(request):
         })
     except Machine.DoesNotExist:
         return Response({'status': 'error', 'message': 'Invalid credentials.'}, status=400)
-
