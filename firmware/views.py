@@ -44,7 +44,6 @@ def logs(request):
         return JsonResponse({'error': f'Unexpected error: {str(e)}'}, status=500)
 
 
-@csrf_exempt
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def create_asset(request):
@@ -52,7 +51,7 @@ def create_asset(request):
         data = request.data
         serial_number = data.get('serial_number')
         product = data.get('product', 'Unknown Product')
-        asset_name = data.get('asset_name', 'Unnamed Asset')
+        assetname = data.get('assetname', 'Unnamed Asset')  # Change 'asset_name' to 'assetname'
 
         if not serial_number:
             return JsonResponse({'error': 'Serial number not provided'}, status=400)
@@ -60,11 +59,12 @@ def create_asset(request):
         # Create or update asset
         asset, created = Asset.objects.get_or_create(
             serialnumber=serial_number,
-            defaults={'product': product, 'assetname': asset_name, 'logs': ''}
+            defaults={'product': product, 'assetname': assetname, 'logs': ''}
         )
 
         if not created:
             asset.product = product
+            asset.assetname = assetname  # Update assetname if necessary
             asset.save()
 
         return JsonResponse({
@@ -73,10 +73,10 @@ def create_asset(request):
         }, status=200)
 
     except Exception as e:
-        # Log the exception
         import traceback
         traceback.print_exc()
         return JsonResponse({'error': f'Unexpected error: {str(e)}'}, status=500)
+
 
 
 
