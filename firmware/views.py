@@ -48,9 +48,6 @@ def logs(request):
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def create_asset(request):
-    """
-    Create or update an Asset based on a unique serial number.
-    """
     try:
         data = json.loads(request.body)
         serial_number = data.get('serial_number')
@@ -70,12 +67,17 @@ def create_asset(request):
             asset.product = product
             asset.save()
 
-        return JsonResponse({'status': 'success', 'message': 'Asset created successfully' if created else 'Asset already exists'}, status=200)
+        return JsonResponse({
+            'status': 'success',
+            'message': 'Asset created successfully' if created else 'Asset updated successfully'
+        }, status=200)
 
-    except json.JSONDecodeError:
-        return JsonResponse({'error': 'Invalid JSON'}, status=400)
     except Exception as e:
+        # Log the exception
+        import traceback
+        traceback.print_exc()
         return JsonResponse({'error': f'Unexpected error: {str(e)}'}, status=500)
+
 
 
 @api_view(['POST'])

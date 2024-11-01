@@ -44,7 +44,8 @@ CSRF_TRUSTED_ORIGINS = [
 
 # Application definition
 
-APPEND_SLASH = False
+APPEND_SLASH = True
+
 
 # settings.py
 VTIGER_URL = 'https://vtiger.anatol.com//webservice.php'  # Replace with your Vtiger URL
@@ -122,7 +123,7 @@ WSGI_APPLICATION = 'ota_server.wsgi.application'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
 DATABASES = {
-'default': dj_database_url.config(default='sqlite:///' + str(BASE_DIR / "db.sqlite3")),
+    'default': dj_database_url.config(conn_max_age=600, ssl_require=True)
 }
 
 

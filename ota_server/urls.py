@@ -25,11 +25,8 @@ urlpatterns = [
     path('', include('firmware.urls')),
     path('tickets/', views.ticket_list, name='ticket_list'),
     path('admin/', admin.site.urls),
-    path('api/create_asset', views.create_asset, name='create_asset'),
-    path('api/logs', views.logs, name='logs'),
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT) + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
 
-
-]+ static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)+ static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
 
 
 
