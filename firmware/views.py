@@ -5,7 +5,6 @@ from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from .models import Firmware, Asset
-from .serializers import MachineLogSerializer
 from .vtiger_client import VtigerClient
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
